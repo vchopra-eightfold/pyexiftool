@@ -37,6 +37,7 @@ import shutil
 from pathlib import Path  # requires Python 3.4+
 import random
 import locale
+import time
 
 # for the pdeathsig
 import signal
@@ -132,7 +133,15 @@ def _read_fd_endswith(fd, b_endswith, block_size: int):
 
 	# I believe doing a splice, then a strip is more efficient in memory hence the original code did it this way.
 	# need to benchmark to see if in large strings, strip()[-endswithcount:] is more expensive or not
+
+	# While it's not possible to check if all reads are not shady,
+	# Timeout if the segment takes forever, i.e. >1s
+	s = time.time()
+
 	while not _get_buffer_end(output_list, endswith_count).strip().endswith(b_endswith):
+		if (time.time() - s) > 1:
+			raise TimeoutError
+
 		if constants.PLATFORM_WINDOWS:
 			# windows does not support select() for anything except sockets
 			# https://docs.python.org/3.7/library/select.html
